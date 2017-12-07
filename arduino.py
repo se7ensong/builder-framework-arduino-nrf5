@@ -28,8 +28,8 @@ env = DefaultEnvironment()
 platform = env.PioPlatform()
 board = env.BoardConfig()
 
-FRAMEWORK_DIR = platform.get_package_dir("framework-arduinonordicnrf5")
-FRAMEWORK_VERSION = platform.get_package_version("framework-arduinonordicnrf5")
+FRAMEWORK_DIR = platform.get_package_dir("framework-arduinoadafruitnrf52")
+FRAMEWORK_VERSION = platform.get_package_version("framework-arduinoadafruitnrf52")
 assert isdir(FRAMEWORK_DIR)
 
 env.Append(
@@ -46,7 +46,9 @@ env.Append(
         # For compatibility with sketches designed for AVR@16 MHz (see SPI lib)
         ("F_CPU", "16000000L"),
         "ARDUINO_ARCH_NRF5",
-        "NRF5"
+        "NRF5",
+        "NRF52",
+        ("ARDUINO_BSP_VERSION", '\\"0.7.5\\"' )
     ],
 
     LIBPATH=[
@@ -55,11 +57,44 @@ env.Append(
              "toolchain", "gcc")
     ],
 
+    #compiler.nrf.flags=-DARDUINO_NRF52_ADAFRUIT -DNRF5 -DNRF52 -DS132 
+    # 
+    # "-I{nrf.sdk.path}/components/toolchain/" 
+    # 
+    # "-I{nrf.sdk.path}/components/toolchain/CMSIS/Include" 
+    # 
+    # "-I{nrf.sdk.path}/components/toolchain/gcc/" 
+    # 
+    # "-I{nrf.sdk.path}/components/device/" 
+    # 
+    # "-I{nrf.sdk.path}/components/drivers_nrf/delay/" 
+    # 
+    # "-I{nrf.sdk.path}/components/drivers_nrf/hal/" 
+    # 
+    # "-I{nrf.sdk.path}/components/libraries/util/" 
+    # 
+    # "-I{nrf.sdk.path}/components/softdevice/s132/headers/" 
+    # 
+    # "-I{rtos.path}/source/include" 
+    # 
+    # "-I{rtos.path}/config" 
+    # 
+    # "-I{rtos.path}/portable/GCC/nrf52" 
+    # 
+    # "-I{rtos.path}/portable/CMSIS/nrf52" 
+    # 
+    # "-I{build.core.path}/sysview/SEGGER" 
+    # 
+    # "-I{build.core.path}/sysview/Config"
+
     CPPPATH=[
         join(FRAMEWORK_DIR, "cores", env.BoardConfig().get("build.core")),
         join(FRAMEWORK_DIR, "cores",
              env.BoardConfig().get("build.core"), "SDK", "components",
              "drivers_nrf", "delay"),
+        join(FRAMEWORK_DIR, "cores",
+             env.BoardConfig().get("build.core"), "SDK", "components",
+             "drivers_nrf", "hal"),
         join(FRAMEWORK_DIR, "cores",
              env.BoardConfig().get("build.core"), "SDK", "components",
              "device"),
@@ -68,7 +103,10 @@ env.Append(
              "toolchain"),
         join(FRAMEWORK_DIR, "cores",
              env.BoardConfig().get("build.core"), "SDK", "components",
-             "toolchain", "CMSIS", "Include")
+             "toolchain", "CMSIS", "Include"),
+        join(FRAMEWORK_DIR, "cores",
+             env.BoardConfig().get("build.core"), "SDK", "components",
+             "libraries", "util")
     ],
 
     LINKFLAGS=[
@@ -97,15 +135,11 @@ env.Append(
 # Process softdevice options
 softdevice_ver = ""
 cpp_defines = env.Flatten(env.get("CPPDEFINES", []))
-if "NRF52_S132" in cpp_defines:
-    softdevice_ver = "s132"
-elif "NRF51_S130" in cpp_defines:
-    softdevice_ver = "s130"
-elif "NRF51_S110" in cpp_defines:
-    softdevice_ver = "s110"
+softdevice_ver = "s132"
+bootloader_ver = "s132_v201"
+board_name = "feather52"
 
 if softdevice_ver:
-
     env.Append(
         CPPPATH=[
             join(FRAMEWORK_DIR, "cores", env.BoardConfig().get("build.core"),
@@ -115,12 +149,11 @@ if softdevice_ver:
         CPPDEFINES=["%s" % softdevice_ver.upper()]
     )
 
-    hex_path = join(FRAMEWORK_DIR, "cores",
-                    env.BoardConfig().get("build.core"), "SDK", "components",
-                    "softdevice", softdevice_ver, "hex")
+    hex_path = join(FRAMEWORK_DIR, "bin",
+                    "bootloader", bootloader_ver)
 
     for f in listdir(hex_path):
-        if f.endswith(".hex") and f.lower().startswith(softdevice_ver):
+        if f.endswith(bootloader_ver + ".hex") and f.lower().startswith(board_name):
             env.Append(SOFTDEVICEHEX=join(hex_path, f))
 
     if "SOFTDEVICEHEX" not in env:
@@ -128,20 +161,64 @@ if softdevice_ver:
 
     # Update linker script:
     ldscript_dir = join(FRAMEWORK_DIR, "cores",
-                        env.BoardConfig().get("build.core"), "SDK",
-                        "components", "softdevice", softdevice_ver,
-                        "toolchain", "armgcc")
-    mcu_family = env.BoardConfig().get("build.ldscript", "").split("_")[1]
-    ldscript_path = ""
-    for f in listdir(ldscript_dir):
-        if f.endswith(mcu_family) and softdevice_ver in f.lower():
-            ldscript_path = join(ldscript_dir, f)
+                        env.BoardConfig().get("build.core"), "linker")
+    ldscript_path = join(ldscript_dir, "bluefruit52_"+bootloader_ver+".ld")
 
     if ldscript_path:
         env.Replace(LDSCRIPT_PATH=ldscript_path)
     else:
         print("Warning! Cannot find an appropriate linker script for the "
               "required softdevice!")
+
+freertos_path = join(FRAMEWORK_DIR, "cores", env.BoardConfig().get("build.core"), "freertos")
+if(isdir(freertos_path)):
+    env.Append(
+        CPPPATH=[
+            join(freertos_path, "source", "include"),
+            join(freertos_path, "config"),
+            join(freertos_path, "portable", "GCC", "nrf52"),
+            join(freertos_path, "portable", "CMSIS", "nrf52")
+        ]
+    )
+
+sysview_path = join(FRAMEWORK_DIR, "cores", env.BoardConfig().get("build.core"), "sysview")
+if(isdir(sysview_path)):
+    env.Append(
+        CPPPATH=[
+            join(sysview_path, "SEGGER"),
+            join(sysview_path, "Config")
+        ]
+    )
+
+# nffs.includes=
+# "-I{nffs.path}/fs/nffs/include" 
+# "-I{nffs.path}/fs/fs/include"  
+# "-I{nffs.path}/fs/disk/include" 
+# "-I{nffs.path}/util/crc/include" 
+# "-I{nffs.path}/kernel/os/include" 
+# "-I{nffs.path}/kernel/os/include/os/arch/cortex_m4" 
+# "-I{nffs.path}/hw/hal/include" 
+# "-I{nffs.path}/sys/flash_map/include" 
+# "-I{nffs.path}/sys/defs/include"
+
+nffs_path = join(FRAMEWORK_DIR, "libraries", "nffs", "src")
+if(isdir(nffs_path)):
+    env.Append(
+        CPPPATH=[
+            join(nffs_path, "fs", "nffs", "include"),
+            join(nffs_path, "fs", "fs", "include"),
+            join(nffs_path, "fs", "disk", "include"),
+            join(nffs_path, "util", "crc", "include"),
+            join(nffs_path, "kernel", "os", "include"),
+            join(nffs_path, "kernel", "os", "include", "os", "arch", "cortex_m4"),
+            join(nffs_path, "hw", "hal", "include"),
+            join(nffs_path, "sys", "flash_map", "include"),
+            join(nffs_path, "sys", "defs", "include")
+        ]
+    )
+
+
+#print env.Dump()
 
 # Select crystal oscillator as the low frequency source by default
 clock_options = ("USE_LFXO", "USE_LFRC" "USE_LFSYNT")
