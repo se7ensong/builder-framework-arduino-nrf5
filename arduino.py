@@ -29,7 +29,6 @@ platform = env.PioPlatform()
 board = env.BoardConfig()
 
 FRAMEWORK_DIR = platform.get_package_dir("framework-arduinoadafruitnrf52")
-FRAMEWORK_VERSION = platform.get_package_version("framework-arduinoadafruitnrf52")
 assert isdir(FRAMEWORK_DIR)
 
 env.Append(
@@ -57,56 +56,38 @@ env.Append(
              "toolchain", "gcc")
     ],
 
-    #compiler.nrf.flags=-DARDUINO_NRF52_ADAFRUIT -DNRF5 -DNRF52 -DS132 
-    # 
+    #compiler.nrf.flags=-DARDUINO_NRF52_ADAFRUIT -DNRF5 -DNRF52 -DNRF52832_XXAA -DUSE_LFXO {build.sd_flags} {build.debug_flags} 
     # "-I{nrf.sdk.path}/components/toolchain/" 
-    # 
-    # "-I{nrf.sdk.path}/components/toolchain/CMSIS/Include" 
-    # 
+    # "-I{nrf.sdk.path}/components/toolchain/cmsis/include" 
     # "-I{nrf.sdk.path}/components/toolchain/gcc/" 
-    # 
     # "-I{nrf.sdk.path}/components/device/" 
-    # 
     # "-I{nrf.sdk.path}/components/drivers_nrf/delay/" 
-    # 
     # "-I{nrf.sdk.path}/components/drivers_nrf/hal/" 
-    # 
     # "-I{nrf.sdk.path}/components/libraries/util/" 
-    # 
-    # "-I{nrf.sdk.path}/components/softdevice/s132/headers/" 
-    # 
+    # "-I{build.core.path}/softdevice/{build.sd_name}/{build.sd_version}/headers/" 
     # "-I{rtos.path}/source/include" 
-    # 
     # "-I{rtos.path}/config" 
-    # 
     # "-I{rtos.path}/portable/GCC/nrf52" 
-    # 
     # "-I{rtos.path}/portable/CMSIS/nrf52" 
-    # 
     # "-I{build.core.path}/sysview/SEGGER" 
-    # 
-    # "-I{build.core.path}/sysview/Config"
+    # "-I{build.core.path}/sysview/Config" {nffs.includes}
 
     CPPPATH=[
-        join(FRAMEWORK_DIR, "cores", env.BoardConfig().get("build.core")),
-        join(FRAMEWORK_DIR, "cores",
-             env.BoardConfig().get("build.core"), "SDK", "components",
-             "drivers_nrf", "delay"),
-        join(FRAMEWORK_DIR, "cores",
-             env.BoardConfig().get("build.core"), "SDK", "components",
-             "drivers_nrf", "hal"),
-        join(FRAMEWORK_DIR, "cores",
-             env.BoardConfig().get("build.core"), "SDK", "components",
-             "device"),
-        join(FRAMEWORK_DIR, "cores",
-             env.BoardConfig().get("build.core"), "SDK", "components",
-             "toolchain"),
-        join(FRAMEWORK_DIR, "cores",
-             env.BoardConfig().get("build.core"), "SDK", "components",
-             "toolchain", "CMSIS", "Include"),
-        join(FRAMEWORK_DIR, "cores",
-             env.BoardConfig().get("build.core"), "SDK", "components",
-             "libraries", "util")
+        join(FRAMEWORK_DIR, "cores", board.get("build.core")),
+        join(FRAMEWORK_DIR, "cores", board.get("build.core"),
+             "SDK", "components", "drivers_nrf", "delay"),
+        join(FRAMEWORK_DIR, "cores", board.get("build.core"),
+             "SDK", "components", "drivers_nrf", "hal"),
+        join(FRAMEWORK_DIR, "cores", board.get("build.core"),
+             "SDK", "components", "device"),
+        join(FRAMEWORK_DIR, "cores", board.get("build.core"),
+             "SDK", "components", "toolchain"),
+        join(FRAMEWORK_DIR, "cores", board.get("build.core"),
+             "SDK", "components", "toolchain", "cmsis", "include"),
+        join(FRAMEWORK_DIR, "cores", board.get("build.core"),
+             "SDK", "components", "toolchain", "gcc"),
+        join(FRAMEWORK_DIR, "cores", board.get("build.core"),
+             "SDK", "components", "libraries", "util")
     ],
 
     LINKFLAGS=[
@@ -133,27 +114,28 @@ env.Append(
 )
 
 # Process softdevice options
-softdevice_ver = ""
+softdevice_name = None
 cpp_defines = env.Flatten(env.get("CPPDEFINES", []))
-softdevice_ver = "s132"
-bootloader_ver = "s132_v201"
+softdevice_name = "s132"
+softdevice_ver = "5.1.0"
+bootloader_type = "dual"
 board_name = "feather52"
 
-if softdevice_ver:
+if softdevice_name:
     env.Append(
         CPPPATH=[
-            join(FRAMEWORK_DIR, "cores", env.BoardConfig().get("build.core"),
-            "SDK", "components", "softdevice", softdevice_ver, "headers")
+            join(FRAMEWORK_DIR, "cores", board.get("build.core"),
+                "softdevice", softdevice_name, softdevice_ver, "headers")
         ],
 
-        CPPDEFINES=["%s" % softdevice_ver.upper()]
+        CPPDEFINES=["%s" % softdevice_name.upper()]
     )
 
-    hex_path = join(FRAMEWORK_DIR, "bin",
-                    "bootloader", bootloader_ver)
+    hex_path = join(FRAMEWORK_DIR, "bin", "bootloader",
+                    board_name, softdevice_ver, bootloader_type)
 
     for f in listdir(hex_path):
-        if f.endswith(bootloader_ver + ".hex") and f.lower().startswith(board_name):
+        if f.endswith(softdevice_ver + "_" + bootloader_type + ".hex") and f.lower().startswith(board_name):
             env.Append(SOFTDEVICEHEX=join(hex_path, f))
 
     if "SOFTDEVICEHEX" not in env:
@@ -161,16 +143,25 @@ if softdevice_ver:
 
     # Update linker script:
     ldscript_dir = join(FRAMEWORK_DIR, "cores",
-                        env.BoardConfig().get("build.core"), "linker")
-    ldscript_path = join(ldscript_dir, "bluefruit52_"+bootloader_ver+".ld")
+                        board.get("build.core"), "linker")
+#    mcu_family = board.get("build.ldscript", "").split("_")[1]
+#    ldscript_path = ""
+#    for f in listdir(ldscript_dir):
+#        if f.endswith(mcu_family) and softdevice_name in f.lower():
+#            ldscript_path = join(ldscript_dir, f)
+    ldscript_name = "bluefruit52_"+softdevice_name+"_"+softdevice_ver+".ld"
 
-    if ldscript_path:
-        env.Replace(LDSCRIPT_PATH=ldscript_path)
+    if ldscript_name:
+        env.Append(LINKFLAGS=[
+            "-L"+ldscript_dir,
+#            "-T"+ldscript_name
+        ])
+        env.Replace(LDSCRIPT_PATH=ldscript_name)
     else:
         print("Warning! Cannot find an appropriate linker script for the "
               "required softdevice!")
 
-freertos_path = join(FRAMEWORK_DIR, "cores", env.BoardConfig().get("build.core"), "freertos")
+freertos_path = join(FRAMEWORK_DIR, "cores", board.get("build.core"), "freertos")
 if(isdir(freertos_path)):
     env.Append(
         CPPPATH=[
@@ -181,7 +172,7 @@ if(isdir(freertos_path)):
         ]
     )
 
-sysview_path = join(FRAMEWORK_DIR, "cores", env.BoardConfig().get("build.core"), "sysview")
+sysview_path = join(FRAMEWORK_DIR, "cores", board.get("build.core"), "sysview")
 if(isdir(sysview_path)):
     env.Append(
         CPPPATH=[
