@@ -104,8 +104,14 @@ env.Append(
 if env.BoardConfig().get("build.cpu") == "cortex-m4":
     env.Append(
         CCFLAGS=[
-            "-mfloat-abi=softfp",
-            "-mfpu=fpv4-sp-d16"
+            "-mfloat-abi=hard",
+            "-mfpu=fpv4-sp-d16",
+            "-u _printf_float"
+        ],
+        LINKFLAGS=[
+            "-mfloat-abi=hard",
+            "-mfpu=fpv4-sp-d16",
+            "-u _printf_float"
         ]
     )
 
@@ -128,7 +134,10 @@ if softdevice_name:
                 "softdevice", softdevice_name, softdevice_ver, "headers")
         ],
 
-        CPPDEFINES=["%s" % softdevice_name.upper()]
+        CPPDEFINES=[
+            "%s" % softdevice_name.upper(),
+            "SOFTDEVICE_PRESENT"
+        ]
     )
 
     hex_path = join(FRAMEWORK_DIR, "bin", "bootloader",
@@ -149,7 +158,8 @@ if softdevice_name:
 #    for f in listdir(ldscript_dir):
 #        if f.endswith(mcu_family) and softdevice_name in f.lower():
 #            ldscript_path = join(ldscript_dir, f)
-    ldscript_name = "bluefruit52_"+softdevice_name+"_"+softdevice_ver+".ld"
+    ldscript_name = board.get("build.ldscript", "")
+    #"bluefruit52_"+softdevice_name+"_"+softdevice_ver+".ld"
 
     if ldscript_name:
         env.Append(LINKFLAGS=[
