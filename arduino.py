@@ -144,10 +144,10 @@ if softdevice_name:
                     board_name, softdevice_ver, bootloader_type)
 
     for f in listdir(hex_path):
-        if f.endswith(softdevice_ver + "_" + bootloader_type + ".hex") and f.lower().startswith(board_name):
-            env.Append(SOFTDEVICEHEX=join(hex_path, f))
+        if f == "%s_bootloader_%s_%s_%s.hex" % (board_name, softdevice_ver, softdevice_name, bootloader_type):
+            env.Append(DFUBOOTHEX=join(hex_path, f))
 
-    if "SOFTDEVICEHEX" not in env:
+    if "DFUBOOTHEX" not in env:
         print "Warning! Cannot find an appropriate softdevice binary!"
 
     # Update linker script:
