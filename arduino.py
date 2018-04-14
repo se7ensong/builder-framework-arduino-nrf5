@@ -43,7 +43,7 @@ env.Append(
 
     CPPDEFINES=[
         # For compatibility with sketches designed for AVR@16 MHz (see SPI lib)
-        ("F_CPU", "16000000L"),
+        ("F_CPU", "64000000L"),
         "ARDUINO_ARCH_NRF5",
         "NRF5",
         "NRF52",
@@ -136,6 +136,7 @@ if softdevice_name:
 
         CPPDEFINES=[
             "%s" % softdevice_name.upper(),
+            ("SD_VER", "510"),
             "SOFTDEVICE_PRESENT"
         ]
     )
