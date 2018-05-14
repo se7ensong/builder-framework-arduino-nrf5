@@ -42,6 +42,7 @@ env.Append(
     ],
 
     CPPDEFINES=[
+        ("ARDUINO", 10805),
         # For compatibility with sketches designed for AVR@16 MHz (see SPI lib)
         ("F_CPU", "64000000L"),
         "ARDUINO_ARCH_NRF5",
@@ -51,9 +52,8 @@ env.Append(
     ],
 
     LIBPATH=[
-        join(FRAMEWORK_DIR, "cores",
-             env.BoardConfig().get("build.core"), "SDK", "components",
-             "toolchain", "gcc")
+        join(FRAMEWORK_DIR, "cores", board.get("build.core"),
+             "SDK", "components", "toolchain", "gcc")
     ],
 
     #compiler.nrf.flags=-DARDUINO_NRF52_ADAFRUIT -DNRF5 -DNRF52 -DNRF52832_XXAA -DUSE_LFXO {build.sd_flags} {build.debug_flags} 
@@ -99,9 +99,14 @@ env.Append(
         "-Wl,--warn-section-align"
     ],
 
-    LIBSOURCE_DIRS=[join(FRAMEWORK_DIR, "libraries")])
+    LIBSOURCE_DIRS=[join(FRAMEWORK_DIR, "libraries")]
+)
 
-if env.BoardConfig().get("build.cpu") == "cortex-m4":
+env.Replace(
+    LIBS=["m"]
+)
+
+if board.get("build.cpu") == "cortex-m4":
     env.Append(
         CCFLAGS=[
             "-mfloat-abi=hard",
@@ -116,7 +121,7 @@ if env.BoardConfig().get("build.cpu") == "cortex-m4":
     )
 
 env.Append(
-    CPPDEFINES=["%s" % env.BoardConfig().get("build.mcu", "")[0:5].upper()]
+    CPPDEFINES=["%s" % board.get("build.mcu", "")[0:5].upper()]
 )
 
 # Process softdevice options
@@ -227,45 +232,26 @@ clock_options = ("USE_LFXO", "USE_LFRC", "USE_LFSYNT")
 if not any(d in clock_options for d in cpp_defines):
     env.Append(CPPDEFINES=["USE_LFXO"])
 
-# Construct upload flags
-upload_args = []
-upload_protocol = env.subst("$UPLOAD_PROTOCOL")
-debug_tools = env.BoardConfig().get("debug.tools", {})
-if upload_protocol in debug_tools:
-    upload_args = ["-s", platform.get_package_dir("tool-openocd") or ""]
-    upload_args += debug_tools.get(
-        upload_protocol).get("server").get("arguments", [])
-    upload_args += ["-c", "program {{$SOURCE}} verify reset; shutdown;"]
-else:
-    print "Warning! Cannot find an apropriate upload method!"
-
-env.Replace(
-    LIBS=["m"],
-    UPLOADER="openocd",
-    UPLOADERFLAGS=upload_args,
-    UPLOADCMD='"$UPLOADER" $UPLOADERFLAGS'
-)
-
 #
 # Target: Build Core Library
 #
 
 libs = []
 
-if "build.variant" in env.BoardConfig():
+if "build.variant" in board:
     env.Append(CPPPATH=[
-        join(FRAMEWORK_DIR, "variants", env.BoardConfig().get("build.variant"))
+        join(FRAMEWORK_DIR, "variants", board.get("build.variant"))
     ])
 
     libs.append(
         env.BuildLibrary(
             join("$BUILD_DIR", "FrameworkArduinoVariant"),
             join(FRAMEWORK_DIR, "variants",
-                 env.BoardConfig().get("build.variant"))))
+                 board.get("build.variant"))))
 
 libs.append(
     env.BuildLibrary(
         join("$BUILD_DIR", "FrameworkArduino"),
-        join(FRAMEWORK_DIR, "cores", env.BoardConfig().get("build.core"))))
+        join(FRAMEWORK_DIR, "cores", board.get("build.core"))))
 
 env.Prepend(LIBS=libs)
