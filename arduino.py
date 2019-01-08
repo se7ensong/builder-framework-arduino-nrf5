@@ -108,7 +108,7 @@ env.Append(
         "-Wl,--unresolved-symbols=report-all",
         "-Wl,--warn-common",
         "-Wl,--warn-section-align",
-        "-Wl,-Map,output.map"
+        "-Wl,-Map," + '"' + join("$BUILD_DIR", board.get("build.variant") + ".map") + '"'
     ],
 
     LIBSOURCE_DIRS=[join(FRAMEWORK_DIR, "libraries")]
@@ -265,10 +265,5 @@ libs.append(
     env.BuildLibrary(
         join("$BUILD_DIR", "FrameworkArduino"),
         join(FRAMEWORK_DIR, "cores", board.get("build.core"))))
-
-libs.append(
-    env.BuildLibrary(
-        join("$BUILD_DIR", "FrameworkArduinoLinker"),
-        join(FRAMEWORK_DIR, "cores", board.get("build.core"), "linker")))
 
 env.Prepend(LIBS=libs)
