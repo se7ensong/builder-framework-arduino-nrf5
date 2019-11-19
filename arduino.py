@@ -48,57 +48,46 @@ env.Append(
         "ARDUINO_ARCH_NRF5",
         "NRF5",
         "NRF52",
-        "NRF52832_XXAA",
         ("ARDUINO_BSP_VERSION", '\\"0.7.5\\"' )
     ],
 
     LIBPATH=[
         join(FRAMEWORK_DIR, "cores", board.get("build.core"),
-             "noric", "nrfx", "mdk"),
-        join(FRAMEWORK_DIR, "cores", board.get("build.core"),
-             "linker")     
+             "SDK", "components", "toolchain", "gcc")
     ],
 
-    #compiler.nrf.flags= -DARDUINO_FEATHER52 -DARDUINO_NRF52_ADAFRUIT -DNRF52_SERIES 
-    # {build.sd_flags} {build.debug_flags} 
-    # "-I{build.core.path}/cmsis/include" 
-    # "-I{nordic.path}" 
-    # "-I{nordic.path}/nrfx" 
-    # "-I{nordic.path}/nrfx/hal" 
-    # "-I{nordic.path}/nrfx/mdk" 
-    # "-I{nordic.path}/nrfx/soc" 
-    # "-I{nordic.path}/nrfx/drivers/include" 
-    # "-I{nordic.path}/softdevice/{build.sd_name}_nrf52_{build.sd_version}_API/include"
-    # "-I{rtos.path}/Source/include" "-I{rtos.path}/config" 
-    # "-I{rtos.path}/portable/GCC/nrf52" "-I{rtos.path}/portable/CMSIS/nrf52" 
+    #compiler.nrf.flags=-DARDUINO_NRF52_ADAFRUIT -DNRF5 -DNRF52 -DNRF52832_XXAA -DUSE_LFXO {build.sd_flags} {build.debug_flags} 
+    # "-I{nrf.sdk.path}/components/toolchain/" 
+    # "-I{nrf.sdk.path}/components/toolchain/cmsis/include" 
+    # "-I{nrf.sdk.path}/components/toolchain/gcc/" 
+    # "-I{nrf.sdk.path}/components/device/" 
+    # "-I{nrf.sdk.path}/components/drivers_nrf/delay/" 
+    # "-I{nrf.sdk.path}/components/drivers_nrf/hal/" 
+    # "-I{nrf.sdk.path}/components/libraries/util/" 
+    # "-I{build.core.path}/softdevice/{build.sd_name}/{build.sd_version}/headers/" 
+    # "-I{rtos.path}/source/include" 
+    # "-I{rtos.path}/config" 
+    # "-I{rtos.path}/portable/GCC/nrf52" 
+    # "-I{rtos.path}/portable/CMSIS/nrf52" 
     # "-I{build.core.path}/sysview/SEGGER" 
-    # "-I{build.core.path}/sysview/Config" 
-    # "-I{build.core.path}/usb" 
-    # "-I{build.core.path}/usb/tinyusb/src"
-
+    # "-I{build.core.path}/sysview/Config" {nffs.includes}
 
     CPPPATH=[
-        join(FRAMEWORK_DIR, "cores", board.get("build.core"),
-             "cmsis", "include"),
-        join(FRAMEWORK_DIR, "cores", board.get("build.core"),
-             "nordic"),
-        join(FRAMEWORK_DIR, "cores", board.get("build.core"),
-             "nordic", "nrfx"),
-        join(FRAMEWORK_DIR, "cores", board.get("build.core"),
-             "nordic", "nrfx", "hal"),
-        join(FRAMEWORK_DIR, "cores", board.get("build.core"),
-             "nordic", "nrfx", "mdk"),
-        join(FRAMEWORK_DIR, "cores", board.get("build.core"),
-             "nordic", "nrfx", "soc"),
-        join(FRAMEWORK_DIR, "cores", board.get("build.core"),
-             "nordic", "nrfx", "drivers", "include"),
         join(FRAMEWORK_DIR, "cores", board.get("build.core")),
         join(FRAMEWORK_DIR, "cores", board.get("build.core"),
-             "utility"),
+             "SDK", "components", "drivers_nrf", "delay"),
         join(FRAMEWORK_DIR, "cores", board.get("build.core"),
-             "usb"),
+             "SDK", "components", "drivers_nrf", "hal"),
         join(FRAMEWORK_DIR, "cores", board.get("build.core"),
-             "usb", "tinyusb", "src")
+             "SDK", "components", "device"),
+        join(FRAMEWORK_DIR, "cores", board.get("build.core"),
+             "SDK", "components", "toolchain"),
+        join(FRAMEWORK_DIR, "cores", board.get("build.core"),
+             "SDK", "components", "toolchain", "cmsis", "include"),
+        join(FRAMEWORK_DIR, "cores", board.get("build.core"),
+             "SDK", "components", "toolchain", "gcc"),
+        join(FRAMEWORK_DIR, "cores", board.get("build.core"),
+             "SDK", "components", "libraries", "util")
     ],
 
     LINKFLAGS=[
@@ -107,8 +96,7 @@ env.Append(
         "-Wl,--check-sections",
         "-Wl,--unresolved-symbols=report-all",
         "-Wl,--warn-common",
-        "-Wl,--warn-section-align",
-        "-Wl,-Map," + '"' + join("$BUILD_DIR", board.get("build.variant") + ".map") + '"'
+        "-Wl,--warn-section-align"
     ],
 
     LIBSOURCE_DIRS=[join(FRAMEWORK_DIR, "libraries")]
@@ -140,33 +128,33 @@ env.Append(
 softdevice_name = None
 cpp_defines = env.Flatten(env.get("CPPDEFINES", []))
 softdevice_name = "s132"
-softdevice_ver = "6.1.1"
+softdevice_ver = "5.1.0"
 bootloader_type = "dual"
-board_name = "dnaband_v4_1"
+board_name = "feather52"
 
 if softdevice_name:
     env.Append(
         CPPPATH=[
             join(FRAMEWORK_DIR, "cores", board.get("build.core"),
-                "nordic", "softdevice", 
-                "%s_nrf52_%s_API" % (softdevice_name, softdevice_ver), "include")
+                "softdevice", softdevice_name, softdevice_ver, "headers")
         ],
 
         CPPDEFINES=[
             "%s" % softdevice_name.upper(),
-            ("SD_VER", "611"),
+            ("SD_VER", "510"),
             "SOFTDEVICE_PRESENT"
         ]
     )
 
-    hex_path = join(FRAMEWORK_DIR, "bootloader", board_name)
+    hex_path = join(FRAMEWORK_DIR, "bin", "bootloader",
+                    board_name, softdevice_ver, bootloader_type)
 
     for f in listdir(hex_path):
-        if f == "%s_bootloader_%s_%s.hex" % (board_name, softdevice_name, softdevice_ver):
+        if f == "%s_bootloader_%s_%s_%s.hex" % (board_name, softdevice_ver, softdevice_name, bootloader_type):
             env.Append(DFUBOOTHEX=join(hex_path, f))
 
     if "DFUBOOTHEX" not in env:
-        print "Warning! Cannot find an appropriate softdevice binary!"
+        print ("Warning! Cannot find an appropriate softdevice binary!")
 
     # Update linker script:
     ldscript_dir = join(FRAMEWORK_DIR, "cores",
