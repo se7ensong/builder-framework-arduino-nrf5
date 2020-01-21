@@ -166,7 +166,7 @@ if softdevice_name:
             env.Append(DFUBOOTHEX=join(hex_path, f))
 
     if "DFUBOOTHEX" not in env:
-        print "Warning! Cannot find an appropriate softdevice binary!"
+        print ("Warning! Cannot find an appropriate softdevice binary!")
 
     # Update linker script:
     ldscript_dir = join(FRAMEWORK_DIR, "cores",
