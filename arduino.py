@@ -28,7 +28,7 @@ env = DefaultEnvironment()
 platform = env.PioPlatform()
 board = env.BoardConfig()
 
-FRAMEWORK_DIR = platform.get_package_dir("framework-arduinoadafruitnrf52")
+FRAMEWORK_DIR = platform.get_package_dir("framework-arduinoadafruitnrf52-dnanudge")
 assert isdir(FRAMEWORK_DIR)
 
 env.Append(
